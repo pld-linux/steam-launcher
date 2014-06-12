@@ -1,6 +1,6 @@
 
 # TODO:
-#	- port distribution-specific scripts to PLD
+#	- check on and fix for x86_64 (multilib system required)
 
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
@@ -10,10 +10,16 @@ License:	distributable
 Group:		Applications
 Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
 # Source0-md5:	c6f75ebaa9e32f2565df620d1867f274
+Patch0:		steamdeps.patch
 URL:		http://store.steampowered.com/
 Requires:	curl
 Requires:	glibc >= 2.15
 Requires:	pld-release
+Requires:	poldek
+Requires:	python-modules
+Requires:	rpm
+Requires:	which
+Requires:	xdg-user-dirs
 Requires:	xterm
 Requires:	xz
 Requires:	zenity
@@ -28,8 +34,10 @@ features.
 
 %prep
 %setup -qn steam
+%patch0 -p1
 
 %build
+sed -i -e's/^ARCH\s*=.*$/ARCH = "%{_arch}"/' steamdeps
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -57,8 +65,8 @@ rm -rf $RPM_BUILD_ROOT
 %doc steam_install_agreement.txt
 %attr(755,root,root) %{_bindir}/steam
 %attr(755,root,root) %{_bindir}/steamdeps
-%dir %{_libdir}/steam
-%{_libdir}/steam/bootstraplinux*.tar.xz
+%dir /usr/lib/steam
+/usr/lib/steam/bootstraplinux*.tar.xz
 %{_desktopdir}/steam.desktop
 %{_iconsdir}/hicolor/*/*/*.png
 %{_mandir}/man6/steam.6*
