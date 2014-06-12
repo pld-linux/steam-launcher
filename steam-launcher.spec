@@ -46,6 +46,9 @@ rm -rf $RPM_BUILD_ROOT
 
 rm $RPM_BUILD_ROOT%{_docdir}/steam/{README,steam_install_agreement.txt}
 
+# installed only when apt is installed on the build host
+[ -d $RPM_BUILD_ROOT/etc/apt ] && rm -r $RPM_BUILD_ROOT/etc/apt
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
