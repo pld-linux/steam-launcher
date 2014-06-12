@@ -12,8 +12,9 @@ Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.
 # Source0-md5:	c6f75ebaa9e32f2565df620d1867f274
 Patch0:		steamdeps.patch
 URL:		http://store.steampowered.com/
+BuildRequires:	sed >= 4.0
 Requires:	curl
-Requires:	glibc >= 2.15
+Requires:	glibc >= 6:2.15
 Requires:	pld-release
 Requires:	poldek
 Requires:	python-modules
@@ -36,12 +37,10 @@ features.
 %setup -qn steam
 %patch0 -p1
 
-%build
 sed -i -e's/^ARCH\s*=.*$/ARCH = "%{_arch}"/' steamdeps
 
 %install
 rm -rf $RPM_BUILD_ROOT
-
 %{__make} install \
 	DESTDIR=$RPM_BUILD_ROOT
 
