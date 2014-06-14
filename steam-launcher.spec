@@ -1,15 +1,12 @@
-
-# TODO:
-#	- check on and fix for x86_64 (multilib system required)
-
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
 Version:	1.0.0.47
-Release:	0.1
+Release:	1
 License:	distributable
 Group:		Applications
 Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
 # Source0-md5:	c6f75ebaa9e32f2565df620d1867f274
+Source1:	%{name}.sysconfig
 Patch0:		steamdeps.patch
 URL:		http://store.steampowered.com/
 BuildRequires:	sed >= 4.0
@@ -27,6 +24,12 @@ Requires:	zenity
 ExclusiveArch:	%{ix86} %{x8664}
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
+%ifarch %{x8664}
+%define	poldek_sources	-n th -n th-i686
+%else
+%define	poldek_sources	-n th
+%endif
+
 %description
 Steam is a software distribution service with an online store,
 automated installation, automatic updates, achievements, SteamCloud
@@ -41,6 +44,9 @@ sed -i -e's/^ARCH\s*=.*$/ARCH = "%{_arch}"/' steamdeps
 
 %install
 rm -rf $RPM_BUILD_ROOT
+
+install -d $RPM_BUILD_ROOT/etc/sysconfig
+
 %{__make} install \
 	DESTDIR=$RPM_BUILD_ROOT
 
@@ -48,6 +54,8 @@ rm $RPM_BUILD_ROOT%{_docdir}/steam/{README,steam_install_agreement.txt}
 
 # installed only when apt is installed on the build host
 [ -d $RPM_BUILD_ROOT/etc/apt ] && rm -r $RPM_BUILD_ROOT/etc/apt
+
+sed -e's/@SOURCES@/%{poldek_sources}/' %{SOURCE1} > $RPM_BUILD_ROOT/etc/sysconfig/%{name}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -67,6 +75,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc steam_install_agreement.txt
 %attr(755,root,root) %{_bindir}/steam
 %attr(755,root,root) %{_bindir}/steamdeps
+%config(noreplace) %verify(not md5 mtime size) /etc/sysconfig/%{name}
 %dir /usr/lib/steam
 /usr/lib/steam/bootstraplinux*.tar.xz
 %{_desktopdir}/steam.desktop

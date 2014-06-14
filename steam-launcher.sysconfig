@@ -1,0 +1,15 @@
+# Configuration for the steam dependencies installer
+
+# set to no to skip automatic dependency installation
+# missing dependencies may break steam installation!
+INSTALL_PACKAGES=yes
+
+# call poldek through sudo
+# not needed when you have 'sudo=yes' or 'sudo=auto' in poldek.conf
+USE_SUDO=no
+
+# options for poldek, e.g. to make multiarch repository available
+POLDEK_OPTIONS="@SOURCES@ --ask"
+
+# space separated list of package/virtual names to consider installed
+INSTALLED=""

@@ -1,7 +1,7 @@
 diff -dur steam.orig/steamdeps steam/steamdeps
 --- steam.orig/steamdeps	2014-02-11 01:25:25.000000000 +0100
-+++ steam/steamdeps	2014-06-12 10:44:00.000000000 +0200
-@@ -20,21 +20,47 @@
++++ steam/steamdeps	2014-06-14 12:23:17.512765217 +0200
+@@ -20,21 +20,91 @@
  # This is the set of supported dependency formats
  SUPPORTED_STEAM_DEPENDENCY_VERSION = [ '1' ]
  
@@ -36,6 +36,50 @@ diff -dur steam.orig/steamdeps steam/steamdeps
 +
 +PLD_PKGNAME_RE = re.compile(r"^(.*)-([^-]*)-([^-]*?)(?:\.([^-]*))?$")
 +
++PLD_CONFIG_FN = "/etc/sysconfig/steam-launcher"
++
++_config = None
++def pld_get_config():
++	"""Load the sysconfig file. Accept shell-like syntax."""
++	global _config
++	if _config is not None:
++		return _config
++	config = {}
++	try:
++		with open(PLD_CONFIG_FN) as config_f:
++			for line in config_f:
++				line = line.strip()
++				if not line or line.startswith("#"):
++					continue
++				if "=" not in line:
++					print >>sys.stderr, "{0}: syntax error: {1!r}".format(PLD_CONFIG_FN, line)
++					continue
++				key, value = line.split("=", 1)
++				key = key.strip()
++				value = value.strip()
++				if value.startswith('"'):
++					if value.endswith('"'):
++						value = value[1:-1]
++					else:
++						print >>sys.stderr, "{0}: syntax error: {1!r}".format(PLD_CONFIG_FN, line)
++						continue
++				config[key] = value
++	except IOError as err:
++		print >>sys.stderr, "{0}: {1}".format(PLD_CONFIG_FN, err)
++	_config = config
++	return config
++
++def pld_config_enabled(variable, default=False):
++	config = pld_get_config()
++	value = config.get(variable, default)
++	if value in (True, False):
++		return value
++	return value.lower() in ("yes", "true", "on")
++
++def pld_config_get(variable, default=None):
++	config = pld_get_config()
++	return config.get(variable, default)
++
  ###
  # Get the current package architecture
  # This may be different than the actual architecture for the case of i386
@@ -56,7 +100,7 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  
  ###
  def getFullPackageName( name ):
-@@ -51,23 +77,26 @@
+@@ -51,23 +121,27 @@
  # N.B. Version checks are not supported on virtual packages
  #
  def isProvided(pkgname):
@@ -79,11 +123,11 @@ diff -dur steam.orig/steamdeps steam/steamdeps
 +        if ":" in pkgname:
 +            pkgname, arch = pkgname.split(":", 1)
 +        else:
-+            arch = PLD_ARCH_MAP[ARCH]
-+
++	    arch = None
+ 
 +        if pkgname.startswith("@"):
 +            pkgname = pkgname[1:]
- 
++
 +	process = subprocess.Popen(['rpm', '-q', '--what-provides', pkgname],
 +                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 +	for line in process.stdout:
@@ -92,14 +136,15 @@ diff -dur steam.orig/steamdeps steam/steamdeps
 +		if ( match is None ):
 +			continue
 +                pkg_arch = match.group(4)
-+                if pkg_arch and PLD_ARCH_MAP[pkg_arch] != arch:
++                if arch and pkg_arch and PLD_ARCH_MAP[pkg_arch] != arch:
++	            print "bad arch {0!r}!={1!r}".format(PLD_ARCH_MAP[pkg_arch], arch)
 +                    continue
 +		return True
 +	return False
  
  ###
  class Package:
-@@ -89,8 +118,17 @@
+@@ -89,8 +163,17 @@
  			return isProvided(self.name)
  
  		for (op, version) in self.versionConditions:
@@ -110,16 +155,16 @@ diff -dur steam.orig/steamdeps steam/steamdeps
 +                        return False
 +                    if op == ">" and rc != 1:
 +                        return False
-+                    if ope == ">=" and rc not in (0, 1):
++                    if op == ">=" and rc not in (0, 1):
 +                        return False
 +                    if op == "<" and rc != 2:
 +                        return False
-+                    if ope == "<=" and rc not in (0, 2):
++                    if op == "<=" and rc not in (0, 2):
 +                        return False
  
  		return True
  
-@@ -103,20 +141,12 @@
+@@ -103,20 +186,12 @@
  
  ###
  def hasPackage( package ):
@@ -143,7 +188,7 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  	# Ubuntu 12.04.2, 12.04.3, and 12.04.4 introduce new X stacks which require 
  	# different sets of incompatible glx packages depending on which X 
  	# is currently installed.
-@@ -186,12 +216,14 @@
+@@ -186,12 +261,14 @@
  	"""
  	if ( "DISPLAY" in os.environ ):
  		programs = [
@@ -160,7 +205,7 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  				return commandLine
  
  	# Fallback if no GUI terminal program is available
-@@ -205,12 +237,16 @@
+@@ -205,17 +282,21 @@
  	Ideally we would call some sort of system UI that users were familiar with to do this, but nothing that exists yet does what we need.
  	"""
  
@@ -178,33 +223,58 @@ diff -dur steam.orig/steamdeps steam/steamdeps
 +
  	# Create a script to run, in a secure way
  	(fd, scriptFile) = tempfile.mkstemp()
- 	script = """#!/bin/sh
-@@ -239,21 +275,16 @@
- __EOF__
- check_sudo
+-	script = """#!/bin/sh
++	script = """#!/bin/sh{sh_flag}
+ check_sudo()
+-{
++{{
+     # If your host file is misconfigured in certain circumstances this
+     # can cause sudo to block for a while, which causes gksudo to go into
+     # limbo and never return.
+@@ -231,29 +312,30 @@
+     else
+         return 0
+     fi
+-}
++}}
  
+ cat <<__EOF__
+ Steam needs to install these additional packages: 
+-	%s
++	{pkg_list}
+ __EOF__
+-check_sudo
+-
 -# Check to make sure 64-bit systems can get 32-bit packages
 -if [ "$(dpkg --print-architecture)" = "amd64" ] && ! dpkg --print-foreign-architectures | grep i386 >/dev/null; then
 -    sudo dpkg --add-architecture i386
 -fi
--
++[ -n "{sudo}" ] && check_sudo
+ 
  # Update the package list, showing progress
 -sudo apt-get update | while read line; do echo -n "."; done
-+sudo poldek --up
++{sudo} poldek {poldek_options} --up
  echo
  
  # Install the packages!
 -sudo apt-get install %s
-+sudo poldek -u --pset=%s
- echo $? >%s
+-echo $? >%s
++{sudo} poldek {poldek_options} -u --pset={pset}
++echo $? >{status_file}
  echo -n "Press return to continue: "
  read line
 -""" % ( ", ".join( [ package.name for package in packages ] ), packageList, statusFile )
-+""" % ( ", ".join( [ package.name for package in packages ] ), psetFile.name, statusFile )
++""".format(
++		pkg_list = ", ".join( [ package.name for package in packages ] ),
++		pset=psetFile.name,
++		status_file=statusFile,
++		sh_flag=" -x" if pld_config_enabled("DEBUG") else "",
++		sudo="sudo" if pld_config_enabled("USE_SUDO") else "",
++		poldek_options=pld_config_get("POLDEK_OPTIONS", ""))
  	os.write( fd, script.encode("utf-8") )
  	os.close( fd )
  	os.chmod( scriptFile, (stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR) )
-@@ -263,6 +294,7 @@
+@@ -263,6 +345,7 @@
  	except KeyboardInterrupt:
  		pass
  	os.unlink( scriptFile )
@@ -212,7 +282,17 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  
  	# Read the status out of the file, since if we ran the script in a
  	# terminal the process status will be whether the terminal started
-@@ -295,11 +327,11 @@
+@@ -274,6 +357,9 @@
+ 
+ 	os.unlink( statusFile )
+ 
++	if status:
++		print "\nWARNING: dependencies install failed!\n"
++
+ 	return status
+ 
+ 
+@@ -295,11 +381,11 @@
  		sys.stderr.write( "Unsupported dependency version: %s\n" % config["STEAM_DEPENDENCY_VERSION"] )
  		return False
  
@@ -227,7 +307,7 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  		return False
  
  	return True
-@@ -355,10 +387,20 @@
+@@ -355,10 +441,20 @@
  	
  		row = []
  		for section in line.split( "|" ):
@@ -249,7 +329,7 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  			packages[ package.name ] = package
  			row.append( package )
  
-@@ -375,32 +417,39 @@
+@@ -375,32 +471,43 @@
  	if ( "COLUMNS" in os.environ ):
  		del os.environ[ "COLUMNS" ]
  
@@ -280,6 +360,7 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  
  	# See which ones need to be installed
 -	needed = []
++	consider_installed = pld_config_get("INSTALLED", "").split()
 +	needed = set()
  	for row in dependencies:
  		if ( len(row) == 0 ):
@@ -292,7 +373,25 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  				break
  		if ( not satisfied ):
 -			needed.append( row[0] )
-+			needed.add( row[0] )
++			if row[0].name not in consider_installed:
++				needed.add( row[0] )
++			else:
++				print("Considering {0} already installed".format(row[0].name))
  
  	# If we have anything to install, do it!
  	if ( len(needed) > 0 ):
+@@ -409,8 +516,12 @@
+ 				print( "Package %s is installed with version '%s' but doesn't match requirements: %s" % (package.name, package.installed, package) )
+ 			else:
+ 				print( "Package %s needs to be installed" % package.name )
+-
+-		return updatePackages( needed )
++		if pld_config_enabled("INSTALL_PACKAGES", True):
++			print("Installing packages as configured through {0}...".format(PLD_CONFIG_FN))
++			return updatePackages( needed )
++		else:
++			print("\nWARNING: Dependencies missing, but package install disabled through {0}\n".format(PLD_CONFIG_FN))
++			return 1
+ 	else:
+ 		return 0
+ 
