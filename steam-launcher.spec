@@ -1,7 +1,7 @@
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
 Version:	1.0.0.47
-Release:	1
+Release:	2
 License:	distributable
 Group:		Applications
 Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
@@ -11,6 +11,7 @@ Patch0:		steamdeps.patch
 URL:		http://store.steampowered.com/
 BuildRequires:	sed >= 4.0
 Requires:	curl
+Requires:	fonts-TTF-RedHat-liberation
 Requires:	glibc >= 6:2.15
 Requires:	pld-release
 Requires:	poldek
