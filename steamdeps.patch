@@ -1,6 +1,6 @@
 diff -dur steam.orig/steamdeps steam/steamdeps
 --- steam.orig/steamdeps	2014-02-11 01:25:25.000000000 +0100
-+++ steam/steamdeps	2014-06-14 12:23:17.512765217 +0200
++++ steam/steamdeps	2015-02-08 13:53:00.628717189 +0100
 @@ -20,21 +20,91 @@
  # This is the set of supported dependency formats
  SUPPORTED_STEAM_DEPENDENCY_VERSION = [ '1' ]
@@ -307,7 +307,20 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  		return False
  
  	return True
-@@ -355,10 +441,20 @@
+@@ -314,7 +400,11 @@
+ 		sys.stderr.write( "Usage: %s dependencies.txt\n" % sys.argv[0] )
+ 		return 1
+ 
+-	# Make sure we can open the file
++	# disable steam runtime, so their libs won't conflict our binaries
++	os.unsetenv("LD_LIBRARY_PATH")
++	os.unsetenv("LD_PRELOAD")
++
++        # Make sure we can open the file
+ 	try:
+ 		fp = open(sys.argv[1])
+ 	except Exception as e:
+@@ -355,10 +445,20 @@
  	
  		row = []
  		for section in line.split( "|" ):
@@ -329,7 +342,7 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  			packages[ package.name ] = package
  			row.append( package )
  
-@@ -375,32 +471,43 @@
+@@ -375,32 +475,43 @@
  	if ( "COLUMNS" in os.environ ):
  		del os.environ[ "COLUMNS" ]
  
@@ -380,7 +393,7 @@ diff -dur steam.orig/steamdeps steam/steamdeps
  
  	# If we have anything to install, do it!
  	if ( len(needed) > 0 ):
-@@ -409,8 +516,12 @@
+@@ -409,8 +520,12 @@
  				print( "Package %s is installed with version '%s' but doesn't match requirements: %s" % (package.name, package.installed, package) )
  			else:
  				print( "Package %s needs to be installed" % package.name )
