@@ -1,11 +1,11 @@
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
-Version:	1.0.0.54
+Version:	1.0.0.55
 Release:	1
 License:	distributable
 Group:		Applications
 Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
-# Source0-md5:	d1398490635615c428165e984a1ec71b
+# Source0-md5:	13d16c01578ee8bc9d7c5a6a5b8ff8e4
 Source1:	%{name}.sysconfig
 Patch0:		steamdeps.patch
 URL:		http://store.steampowered.com/
@@ -52,7 +52,7 @@ install -d $RPM_BUILD_ROOT/etc/sysconfig
 %{__make} install \
 	DESTDIR=$RPM_BUILD_ROOT
 
-rm $RPM_BUILD_ROOT%{_docdir}/steam/{README,steam_install_agreement.txt}
+rm $RPM_BUILD_ROOT%{_docdir}/steam/{README,steam_subscriber_agreement.txt}
 
 # installed only when apt is installed on the build host
 [ -d $RPM_BUILD_ROOT/etc/apt ] && rm -r $RPM_BUILD_ROOT/etc/apt
@@ -74,7 +74,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(644,root,root,755)
-%doc steam_install_agreement.txt
+%doc steam_subscriber_agreement.txt
 %attr(755,root,root) %{_bindir}/steam
 %attr(755,root,root) %{_bindir}/steamdeps
 %config(noreplace) %verify(not md5 mtime size) /etc/sysconfig/%{name}
