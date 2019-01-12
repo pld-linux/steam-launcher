@@ -1,15 +1,16 @@
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
-Version:	1.0.0.56
+Version:	1.0.0.59
 Release:	1
 License:	distributable
 Group:		Applications
 Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
-# Source0-md5:	1ea5a9bbfc742ce7fee18d67d62c79ea
+# Source0-md5:	994dc0700ed28da3a8e23c53ac4717b8
 Source1:	%{name}.sysconfig
 Patch0:		steamdeps.patch
 URL:		http://store.steampowered.com/
 BuildRequires:	sed >= 4.0
+Requires:	ca-certificates >= 20180409-3
 Requires:	curl
 Requires:	fonts-TTF-RedHat-liberation
 Requires:	glibc >= 6:2.15
