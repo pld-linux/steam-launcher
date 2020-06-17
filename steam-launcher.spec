@@ -1,13 +1,14 @@
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
-Version:	1.0.0.59
+Version:	1.0.0.63
 Release:	1
 License:	distributable
 Group:		Applications
 Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
-# Source0-md5:	994dc0700ed28da3a8e23c53ac4717b8
+# Source0-md5:	ace21a51ae486ebf838fa9a89f70ca46
 Source1:	%{name}.sysconfig
 Patch0:		steamdeps.patch
+Patch1:		desktop_path.patch
 URL:		http://store.steampowered.com/
 BuildRequires:	sed >= 4.0
 Requires:	ca-certificates >= 20180409-3
@@ -40,8 +41,12 @@ synchronized savegame and screenshot functionality, and many social
 features.
 
 %prep
-%setup -qn steam
+%setup -qn steam-launcher
 %patch0 -p1
+%patch1 -p1
+
+%{__sed} -i -e '1s,/usr/bin/env python3,%{__python3},' bin_steamdeps.py
+%{__sed} -i -e '1s,/usr/bin/env bash,%{__bash},' bin_steam.sh
 
 sed -i -e's/^ARCH\s*=.*$/ARCH = "%{_arch}"/' steamdeps
 
@@ -59,6 +64,10 @@ rm $RPM_BUILD_ROOT%{_docdir}/steam/{README,steam_subscriber_agreement.txt}
 [ -d $RPM_BUILD_ROOT/etc/apt ] && rm -r $RPM_BUILD_ROOT/etc/apt
 
 sed -e's/@SOURCES@/%{poldek_sources}/' %{SOURCE1} > $RPM_BUILD_ROOT/etc/sysconfig/%{name}
+
+%{__rm} $RPM_BUILD_ROOT%{_desktopdir}/steam.desktop
+%{__mv} $RPM_BUILD_ROOT/usr/lib/steam/steam.desktop $RPM_BUILD_ROOT%{_desktopdir}/steam.desktop
+
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -80,6 +89,8 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_bindir}/steamdeps
 %config(noreplace) %verify(not md5 mtime size) /etc/sysconfig/%{name}
 %dir /usr/lib/steam
+%attr(755,root,root) /usr/lib/steam/bin_steam.sh
+%attr(755,root,root) /usr/lib/steam/bin_steamdeps.py
 /usr/lib/steam/bootstraplinux*.tar.xz
 %{_desktopdir}/steam.desktop
 %{_iconsdir}/hicolor/*/*/*.png

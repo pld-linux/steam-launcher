@@ -1,0 +1,12 @@
+diff -urN steam-launcher.orig/bin_steam.sh steam-launcher/bin_steam.sh
+--- steam-launcher.orig/bin_steam.sh	2020-06-15 17:09:51.024468557 +0200
++++ steam-launcher/bin_steam.sh	2020-06-17 17:51:36.436997528 +0200
+@@ -120,7 +120,7 @@
+ 	if [ -d "$DESKTOP_DIR" ] && [ "x$bootstrapdir" = "x/usr/lib/$STEAMPACKAGE" ]; then
+ 		# There might be a symlink in place already, in such case we do nothing
+ 		if [ ! -L "$DESKTOP_DIR/$STEAMPACKAGE.desktop" ]; then
+-			cp "$bootstrapdir/$STEAMPACKAGE.desktop" "$DESKTOP_DIR"
++			cp "/usr/share/applications/$STEAMPACKAGE.desktop" "$DESKTOP_DIR"
+ 			# Older .desktop implementations used the execute bits as
+ 			# a marker for a .desktop being safe to treat as a shortcut
+ 			chmod a+x "$DESKTOP_DIR/$STEAMPACKAGE.desktop"
