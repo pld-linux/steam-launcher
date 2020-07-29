@@ -1,12 +1,13 @@
---- steam-launcher/bin_steamdeps.py.orig	2020-06-24 12:36:09.000000000 +0200
-+++ steam-launcher/bin_steamdeps.py	2020-06-24 13:18:56.355636195 +0200
-@@ -27,24 +27,92 @@
+--- steam-launcher/bin_steamdeps.py.orig	2020-07-29 17:44:37.000000000 +0200
++++ steam-launcher/bin_steamdeps.py	2020-07-29 19:54:23.553743588 +0200
+@@ -34,8 +34,80 @@
  # This is the set of supported dependency formats
  SUPPORTED_STEAM_DEPENDENCY_VERSION = ['1']
  
 -_arch = None
+-
 +ARCH = "i686" # updated during package build
- 
++ 
 +PLD_PACKAGE_MAP = {
 +        "python-apt": None,
 +        "xz-utils": "xz",
@@ -80,8 +81,9 @@
 +    config = pld_get_config()
 +    return config.get(variable, default)
  
- #
- # Get the current package architecture
+ class OsRelease:
+     def __init__(self):
+@@ -100,17 +172,12 @@
  # This may be different than the actual architecture for the case of i386
  # chroot environments on amd64 hosts.
  #
@@ -96,11 +98,12 @@
 -        _arch = subprocess.check_output(
 -            ['dpkg', '--print-architecture']).decode("utf-8").strip()
 -    return _arch
+-
 +    return PLD_ARCH_MAP[ARCH]
  
- 
  ###
-@@ -61,16 +129,27 @@
+ def get_full_package_name(name):
+@@ -126,16 +193,27 @@
  # N.B. Version checks are not supported on virtual packages
  #
  def is_provided(pkgname):
@@ -137,7 +140,7 @@
  
  ###
  class Package:
-@@ -92,9 +171,17 @@
+@@ -157,9 +235,17 @@
              return is_provided(self.name)
  
          for (op, version) in self.version_conditions:
@@ -158,7 +161,7 @@
  
          return True
  
-@@ -120,6 +207,7 @@
+@@ -185,6 +271,7 @@
  
  
  def remap_package(name):
@@ -166,7 +169,7 @@
      if name in (
              'python-apt',
      ):
-@@ -224,6 +312,8 @@
+@@ -289,6 +376,8 @@
          programs = [
              ("konsole",
               ["konsole", "--nofork", "-p", "tabtitle=" + title, "-e"]),
@@ -175,7 +178,7 @@
              ("xterm",
               ["xterm", "-bg", "#383635", "-fg", "#d1cfcd", "-T", title, "-e"]),
              ("x-terminal-emulator",
-@@ -240,7 +330,7 @@
+@@ -305,7 +394,7 @@
          ]
          for (program, commandLine) in programs:
              if subprocess.call(['which', program],
@@ -184,7 +187,7 @@
                  return commandLine
  
      # Fallback if no GUI terminal program is available
-@@ -255,17 +345,21 @@
+@@ -320,17 +409,21 @@
      to do this, but nothing that exists yet does what we need.
      """
  
@@ -210,7 +213,7 @@
      # If your host file is misconfigured in certain circumstances this
      # can cause sudo to block for a while, which causes gksudo to go into
      # limbo and never return.
-@@ -282,31 +376,30 @@
+@@ -347,31 +440,30 @@
      else
          return 0
      fi
@@ -255,7 +258,7 @@
      os.write(fd, script.encode("utf-8"))
      os.close(fd)
      os.chmod(script_file, (stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR))
-@@ -317,6 +410,7 @@
+@@ -382,6 +474,7 @@
      except KeyboardInterrupt:
          pass
      os.unlink(script_file)
@@ -263,7 +266,7 @@
  
      # Read the status out of the file, since if we ran the script in a
      # terminal the process status will be whether the terminal started
-@@ -328,6 +422,9 @@
+@@ -393,6 +486,9 @@
  
      os.unlink(status_file)
  
@@ -273,7 +276,7 @@
      return status
  
  
-@@ -355,11 +452,11 @@
+@@ -419,11 +515,11 @@
              "STEAM_DEPENDENCY_VERSION"])
          return False
  
@@ -288,9 +291,9 @@
                           "your distribution.\n")
          return False
  
-@@ -375,7 +472,11 @@
-         sys.stderr.write("Usage: %s dependencies.txt\n" % sys.argv[0])
-         return 1
+@@ -457,7 +553,11 @@
+         os_release.dump()
+         return 0
  
 -    # Make sure we can open the file
 +    # disable steam runtime, so their libs won't conflict our binaries
@@ -299,9 +302,9 @@
 +
 +        # Make sure we can open the file
      try:
-         fp = open(sys.argv[1])
+         fp = open(args.dependencies)
      except Exception as e:
-@@ -414,10 +515,20 @@
+@@ -496,10 +596,20 @@
  
          row = []
          for section in line.split("|"):
@@ -323,7 +326,7 @@
              packages[package.name] = package
              row.append(package)
  
-@@ -445,22 +556,28 @@
+@@ -544,22 +654,28 @@
      if "COLUMNS" in os.environ:
          del os.environ["COLUMNS"]
  
@@ -358,7 +361,7 @@
      for row in dependencies:
          if len(row) == 0:
              continue
-@@ -471,7 +588,10 @@
+@@ -570,7 +686,10 @@
                  satisfied = True
                  break
          if not satisfied:
@@ -370,17 +373,17 @@
  
      # If we have anything to install, do it!
      if len(needed) > 0:
-@@ -485,7 +605,12 @@
-                 print("Package %s needs to be installed" % package.name,
-                       file=sys.stderr)
- 
--        return update_packages(needed)
-+        if pld_config_enabled("INSTALL_PACKAGES", True):
-+            print("Installing packages as configured through {0}...".format(PLD_CONFIG_FN))
-+            return updatePackages( needed )
-+        else:
-+            print("\nWARNING: Dependencies missing, but package install disabled through {0}\n".format(PLD_CONFIG_FN))
-+            return 1
+@@ -587,7 +706,12 @@
+         if args.dry_run:
+             return 1
+         else:
+-            return update_packages(needed)
++            if pld_config_enabled("INSTALL_PACKAGES", True):
++                print("Installing packages as configured through {0}...".format(PLD_CONFIG_FN))
++                return updatePackages( needed )
++            else:
++                print("\nWARNING: Dependencies missing, but package install disabled through {0}\n".format(PLD_CONFIG_FN))
++                return 1
      else:
          return 0
  
