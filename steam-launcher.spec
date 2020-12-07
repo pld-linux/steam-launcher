@@ -1,11 +1,11 @@
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
-Version:	1.0.0.67
+Version:	1.0.0.68
 Release:	1
 License:	distributable
 Group:		Applications
 Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
-# Source0-md5:	64471828e6adede2e6f775a9af1df223
+# Source0-md5:	5b1f5d233643f30cee2eba8ecaa78483
 Source1:	%{name}.sysconfig
 Patch0:		steamdeps.patch
 Patch1:		desktop_path.patch
