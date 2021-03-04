@@ -4,7 +4,7 @@ Version:	1.0.0.69
 Release:	1
 License:	distributable
 Group:		Applications
-Source0:	http://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
+Source0:	https://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
 # Source0-md5:	9099e348686ac5d50f6a8823e40c421d
 Source1:	%{name}.sysconfig
 Patch0:		steamdeps.patch
