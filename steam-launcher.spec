@@ -2,12 +2,12 @@
 
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
-Version:	1.0.0.70
+Version:	1.0.0.71
 Release:	1
 License:	distributable
 Group:		Applications
 Source0:	https://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
-# Source0-md5:	7d7cfe9d3db198427b8c78575359f2cf
+# Source0-md5:	02be920816bc369c8ac6579942535910
 Source1:	%{name}.sysconfig
 Patch0:		steamdeps.patch
 Patch1:		desktop_path.patch
@@ -67,9 +67,7 @@ rm $RPM_BUILD_ROOT%{_docdir}/steam/{README,steam_subscriber_agreement.txt}
 
 sed -e's/@SOURCES@/%{poldek_sources}/' %{SOURCE1} > $RPM_BUILD_ROOT/etc/sysconfig/%{name}
 
-%{__rm} $RPM_BUILD_ROOT%{_desktopdir}/steam.desktop
-%{__mv} $RPM_BUILD_ROOT/usr/lib/steam/steam.desktop $RPM_BUILD_ROOT%{_desktopdir}/steam.desktop
-
+%{__rm} $RPM_BUILD_ROOT/usr/lib/steam/steam.desktop
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -98,3 +96,4 @@ rm -rf $RPM_BUILD_ROOT
 %{_iconsdir}/hicolor/*/*/*.png
 %{_mandir}/man6/steam.6*
 %{_pixmapsdir}/*.png
+%{_datadir}/metainfo/com.valvesoftware.Steam.metainfo.xml
