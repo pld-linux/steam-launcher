@@ -213,7 +213,7 @@
      # If your host file is misconfigured in certain circumstances this
      # can cause sudo to block for a while, which causes gksudo to go into
      # limbo and never return.
-@@ -347,31 +440,30 @@
+@@ -347,33 +440,32 @@
      else
          return 0
      fi
@@ -239,8 +239,10 @@
 +{sudo} poldek {poldek_options} --up
  echo
  
- # Install the packages!
--sudo apt-get install %s
+ # Install the packages using the option "--no-remove" to avoid
+ # unexpected dependencies cycle that end up removing packages that are
+ # essential for the OS to run
+-sudo apt-get install --no-remove %s
 -echo $? >%s
 +{sudo} poldek {poldek_options} -u --pset={pset}
 +echo $? >{status_file}
@@ -355,7 +357,7 @@
          packages[name].set_installed(match.group(2))
  
      # See which ones need to be installed
--    needed = []
+-    needed = set()
 +    consider_installed = pld_config_get("INSTALLED", "").split()
 +    needed = set()
      for row in dependencies:
@@ -365,7 +367,7 @@
                  satisfied = True
                  break
          if not satisfied:
--            needed.append(row[0])
+-            needed.add(row[0])
 +            if row[0].name not in consider_installed:
 +                needed.add( row[0] )
 +            else:
@@ -373,11 +375,12 @@
  
      # If we have anything to install, do it!
      if len(needed) > 0:
-@@ -587,7 +706,12 @@
-         if args.dry_run:
-             return 1
-         else:
--            return update_packages(needed)
+@@ -587,8 +706,12 @@
+             # ones listed in "ensure_installed_packages". If they were already
+             # installed, this forces apt to keep them into consideration when
+             # it evaluates the new packages dependencies.
+-            needed.update(ensure_installed_packages)
+-            return update_packages(sorted(needed, key=lambda x: x.name))
 +            if pld_config_enabled("INSTALL_PACKAGES", True):
 +                print("Installing packages as configured through {0}...".format(PLD_CONFIG_FN))
 +                return updatePackages( needed )
