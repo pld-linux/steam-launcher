@@ -1,108 +1,5 @@
 --- steam-launcher/bin_steamdeps.py.orig	2020-07-29 17:44:37.000000000 +0200
 +++ steam-launcher/bin_steamdeps.py	2020-07-29 19:54:23.553743588 +0200
-@@ -34,8 +34,80 @@
- # This is the set of supported dependency formats
- SUPPORTED_STEAM_DEPENDENCY_VERSION = ['1']
- 
--_arch = None
--
-+ARCH = "i686" # updated during package build
-+ 
-+PLD_PACKAGE_MAP = {
-+        "python-apt": None,
-+        "xz-utils": "xz",
-+
-+        "libc6": "glibc",
-+        "libc6:i386": "@libc.so.6(GLIBC_2.15)",
-+        "libc6:amd64": "@libc.so.6(GLIBC_2.15)(64bit)",
-+
-+        # different libGL implementation pull different drivers & dependencies
-+        "libgl1-mesa-dri:i386": "@libGL.so.1",
-+        "libgl1-mesa-glx:i386": "@libGL.so.1",
-+        }
-+
-+if "64" in ARCH:
-+        PLD_PACKAGE_MAP["libgl1-mesa-dri"] = "@libGL.so.1()(64bit)"
-+        PLD_PACKAGE_MAP["libgl1-mesa-glx"] = "@libGL.so.1()(64bit)"
-+else:
-+        PLD_PACKAGE_MAP["libgl1-mesa-dri"] = "@libGL.so.1"
-+        PLD_PACKAGE_MAP["libgl1-mesa-glx"] = "@libGL.so.1"
-+
-+PLD_ARCH_MAP = {
-+        "x86_64": "amd64",
-+        "i486": "i386",
-+        "i586": "i386",
-+        "i686": "i386",
-+        }
-+
-+PLD_PKGNAME_RE = re.compile(r"^(.*)-([^-]*)-([^-]*?)(?:\.([^-]*))?$")
-+
-+PLD_CONFIG_FN = "/etc/sysconfig/steam-launcher"
-+
-+_config = None
-+def pld_get_config():
-+    """Load the sysconfig file. Accept shell-like syntax."""
-+    global _config
-+    if _config is not None:
-+        return _config
-+    config = {}
-+    try:
-+        with open(PLD_CONFIG_FN) as config_f:
-+            for line in config_f:
-+                line = line.strip()
-+                if not line or line.startswith("#"):
-+                    continue
-+                if "=" not in line:
-+                    print >>sys.stderr, "{0}: syntax error: {1!r}".format(PLD_CONFIG_FN, line)
-+                    continue
-+                key, value = line.split("=", 1)
-+                key = key.strip()
-+                value = value.strip()
-+                if value.startswith('"'):
-+                    if value.endswith('"'):
-+                        value = value[1:-1]
-+                    else:
-+                        print >>sys.stderr, "{0}: syntax error: {1!r}".format(PLD_CONFIG_FN, line)
-+                        continue
-+                config[key] = value
-+    except IOError as err:
-+        print >>sys.stderr, "{0}: {1}".format(PLD_CONFIG_FN, err)
-+    _config = config
-+    return config
-+
-+def pld_config_enabled(variable, default=False):
-+    config = pld_get_config()
-+    value = config.get(variable, default)
-+    if value in (True, False):
-+        return value
-+    return value.lower() in ("yes", "true", "on")
-+
-+def pld_config_get(variable, default=None):
-+    config = pld_get_config()
-+    return config.get(variable, default)
- 
- class OsRelease:
-     def __init__(self):
-@@ -100,17 +172,12 @@
- # This may be different than the actual architecture for the case of i386
- # chroot environments on amd64 hosts.
- #
-+# PLD: use the architecture the steam-launcher package was built for
- def get_arch():
-     """
-     Get the current architecture
-     """
--    global _arch
--
--    if _arch is None:
--        _arch = subprocess.check_output(
--            ['dpkg', '--print-architecture']).decode("utf-8").strip()
--    return _arch
--
-+    return PLD_ARCH_MAP[ARCH]
- 
- ###
- def get_full_package_name(name):
 @@ -126,16 +193,27 @@
  # N.B. Version checks are not supported on virtual packages
  #
@@ -178,106 +75,6 @@
              ("xterm",
               ["xterm", "-bg", "#383635", "-fg", "#d1cfcd", "-T", title, "-e"]),
              ("x-terminal-emulator",
-@@ -305,7 +394,7 @@
-         ]
-         for (program, commandLine) in programs:
-             if subprocess.call(['which', program],
--                               stdout=subprocess.PIPE) == 0:
-+                               stdout=subprocess.PIPE, stderr=open("/dev/null", "w")) == 0:
-                 return commandLine
- 
-     # Fallback if no GUI terminal program is available
-@@ -320,17 +409,21 @@
-     to do this, but nothing that exists yet does what we need.
-     """
- 
--    package_list = " ".join([package.name for package in packages])
--
-     # Create a temporary file to hold the installation completion status
-     (fd, status_file) = tempfile.mkstemp()
-     os.close(fd)
- 
-+    # Create a poldek pset file to allow installing virtual deps
-+    psetFile = tempfile.NamedTemporaryFile("w")
-+    for package in packages:
-+        print >> psetFile, package.name
-+    psetFile.flush()
-+
-     # Create a script to run, in a secure way
-     (fd, script_file) = tempfile.mkstemp()
--    script = """#!/bin/sh
-+    script = """#!/bin/sh{sh_flag}
- check_sudo()
--{
-+{{
-     # If your host file is misconfigured in certain circumstances this
-     # can cause sudo to block for a while, which causes gksudo to go into
-     # limbo and never return.
-@@ -347,33 +440,32 @@
-     else
-         return 0
-     fi
--}
-+}}
- 
- cat <<__EOF__
- Steam needs to install these additional packages:
--    %s
-+    {pkg_list}
- __EOF__
--check_sudo
--
--# Check to make sure 64-bit systems can get 32-bit packages
--if [ "$(dpkg --print-architecture)" = "amd64" ] && \
--   ! dpkg --print-foreign-architectures | grep i386 >/dev/null; then
--    sudo dpkg --add-architecture i386
--fi
-+[ -n "{sudo}" ] && check_sudo
- 
- # Update the package list, showing progress
--sudo apt-get update | while read line; do echo -n "."; done
-+{sudo} poldek {poldek_options} --up
- echo
- 
- # Install the packages using the option "--no-remove" to avoid
- # unexpected dependencies cycle that end up removing packages that are
- # essential for the OS to run
--sudo apt-get install --no-remove %s
--echo $? >%s
-+{sudo} poldek {poldek_options} -u --pset={pset}
-+echo $? >{status_file}
- echo -n "Press return to continue: "
- read line
--""" % (", ".join([package.name for package in packages]), package_list,
--       status_file)
-+""".format(
-+        pkg_list = ", ".join( [ package.name for package in packages ] ),
-+        pset=psetFile.name,
-+        status_file=statusFile,
-+        sh_flag=" -x" if pld_config_enabled("DEBUG") else "",
-+        sudo="sudo" if pld_config_enabled("USE_SUDO") else "",
-+        poldek_options=pld_config_get("POLDEK_OPTIONS", ""))
-     os.write(fd, script.encode("utf-8"))
-     os.close(fd)
-     os.chmod(script_file, (stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR))
-@@ -382,6 +474,7 @@
-     except KeyboardInterrupt:
-         pass
-     os.unlink(script_file)
-+    psetFile.close()
- 
-     # Read the status out of the file, since if we ran the script in a
-     # terminal the process status will be whether the terminal started
-@@ -393,6 +486,9 @@
- 
-     os.unlink(status_file)
- 
-+    if status:
-+        print("\nWARNING: dependencies install failed!\n")
-+
-     return status
- 
- 
 @@ -419,11 +515,11 @@
              "STEAM_DEPENDENCY_VERSION"])
          return False
@@ -293,19 +90,6 @@
                           "your distribution.\n")
          return False
  
-@@ -457,7 +553,11 @@
-         os_release.dump()
-         return 0
- 
--    # Make sure we can open the file
-+    # disable steam runtime, so their libs won't conflict our binaries
-+    os.unsetenv("LD_LIBRARY_PATH")
-+    os.unsetenv("LD_PRELOAD")
-+
-+        # Make sure we can open the file
-     try:
-         fp = open(args.dependencies)
-     except Exception as e:
 @@ -496,10 +596,20 @@
  
          row = []
@@ -328,41 +112,6 @@
              packages[package.name] = package
              row.append(package)
  
-@@ -544,22 +654,28 @@
-     if "COLUMNS" in os.environ:
-         del os.environ["COLUMNS"]
- 
--    process = subprocess.Popen(['dpkg', '-l'] + list(packages.keys()),
--                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
--    installed_pattern = re.compile(r"^\Si\s+([^\s]+)\s+([^\s]+)")
-+    pkg_names = [name.split(":", 1)[0] for name in packages.keys() if not name.startswith("@")]
-+    process = subprocess.Popen( ['rpm', '-q'] + pkg_names, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
-     for line in process.stdout:
-         line = line.decode("utf-8").strip()
--        match = re.match(installed_pattern, line)
-+        match = PLD_PKGNAME_RE.match(line)
-         if match is None:
-             continue
- 
-         name = match.group(1)
-         if name not in packages:
--            name = get_full_package_name(name)
-+            if match.group(4):
-+                arch = PLD_ARCH_MAP[match.group(4)]
-+                name = "{0}:{1}".format(name, arch)
-+            else:
-+                name = getFullPackageName( name )
-+            if name not in packages:
-+                continue
-         packages[name].set_installed(match.group(2))
- 
-     # See which ones need to be installed
--    needed = set()
-+    consider_installed = pld_config_get("INSTALLED", "").split()
-+    needed = set()
-     for row in dependencies:
-         if len(row) == 0:
-             continue
 @@ -570,7 +686,10 @@
                  satisfied = True
                  break
@@ -375,18 +124,4 @@
  
      # If we have anything to install, do it!
      if len(needed) > 0:
-@@ -587,8 +706,12 @@
-             # ones listed in "ensure_installed_packages". If they were already
-             # installed, this forces apt to keep them into consideration when
-             # it evaluates the new packages dependencies.
--            needed.update(ensure_installed_packages)
--            return update_packages(sorted(needed, key=lambda x: x.name))
-+            if pld_config_enabled("INSTALL_PACKAGES", True):
-+                print("Installing packages as configured through {0}...".format(PLD_CONFIG_FN))
-+                return updatePackages( needed )
-+            else:
-+                print("\nWARNING: Dependencies missing, but package install disabled through {0}\n".format(PLD_CONFIG_FN))
-+                return 1
-     else:
-         return 0
  
