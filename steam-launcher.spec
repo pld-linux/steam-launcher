@@ -2,12 +2,12 @@
 
 Summary:	Launcher for the Steam software distribution service
 Name:		steam-launcher
-Version:	1.0.0.72
+Version:	1.0.0.82
 Release:	1
 License:	distributable
 Group:		Applications
 Source0:	https://repo.steampowered.com/steam/pool/steam/s/steam/steam_%{version}.tar.gz
-# Source0-md5:	53c8ec53d0efd81490f9a2827af6366a
+# Source0-md5:	fa2cf63d398b2ff83197a9e9bdcf90c4
 Source1:	%{name}.sysconfig
 Patch0:		steamdeps.patch
 Patch1:		desktop_path.patch
@@ -44,8 +44,7 @@ features.
 
 %prep
 %setup -qn steam-launcher
-%patch0 -p1
-%patch1 -p1
+%patch -P 0 -p1
 
 %{__sed} -i -e '1s,/usr/bin/env python3,%{__python3},' bin_steamdeps.py
 %{__sed} -i -e '1s,/usr/bin/env bash,%{__bash},' bin_steam.sh
